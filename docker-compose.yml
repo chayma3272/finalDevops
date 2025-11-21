@@ -37,7 +37,7 @@ services:
     container_name: frontend
     ports:
       # Expose le port 80 (Nginx) sur le port 8080 de votre machine hôte
-      - "8080:80"
+      - "8081:80"
     depends_on:
       - backend # Assure que le backend démarre avant le frontend
 
