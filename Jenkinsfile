@@ -42,16 +42,20 @@ pipeline {
             }
         }
         
-        stage('Nettoyage Préalable') {
+                stage('Nettoyage Préalable') {
             steps {
                 script {
-                    // Ajouté pour résoudre l'erreur "container name is already in use"
                     echo "Nettoyage des conteneurs et volumes précédents..."
-                    // Utilisation de '|| exit 0' pour ignorer l'erreur si docker-compose down échoue (car les conteneurs n'existent pas encore)
-                    bat 'docker-compose down -v || exit 0' 
+                    // Tentative de suppression agressive des conteneurs et volumes
+                    // Utilisation de '|| exit 0' pour ignorer l'erreur si docker-compose down échoue
+                    bat 'docker-compose down -v --rmi all --remove-orphans || exit 0' 
+                    
+                    // Ajout d'une commande de suppression des conteneurs par nom pour plus de robustesse
+                    bat 'docker rm -f mongodb backend frontend || exit 0'
                 }
             }
         }
+
         
         stage('Checkout') {
             steps {
