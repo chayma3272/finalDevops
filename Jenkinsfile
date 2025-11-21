@@ -11,7 +11,7 @@ pipeline {
         // Le nom du service frontend dans docker-compose.yml est 'frontend'
         FRONTEND_SERVICE_NAME = 'frontend'
         // Le port exposé par le frontend dans docker-compose.yml est 8080 (hôte)
-        FRONTEND_PORT = '8080'
+        FRONTEND_PORT = '8081'
         // Le nom du conteneur frontend est 'frontend' (défini dans docker-compose.yml)
         FRONTEND_CONTAINER_NAME = 'frontend'
     }
