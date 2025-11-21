@@ -1,6 +1,3 @@
-// Jenkinsfile pour le projet MERN-Todo-DevOps
-// Implémente les trois pipelines requis : PR, Dev Push, et Tag Versionné.
-
 pipeline {
     agent any
     
@@ -21,23 +18,22 @@ pipeline {
         stage('Déterminer le Pipeline') {
             steps {
                 script {
-                    // Déterminer le type de build (PR, Dev, Tag)
-                    if (env.BRANCH_NAME == 'dev') {
-                        if (env.TAG_NAME) {
-                            env.PIPELINE_TYPE = 'TAG_VERSIONNE'
-                            echo "Pipeline 3: Déclenché par le tag ${env.TAG_NAME} sur dev."
-                        } else {
-                            env.PIPELINE_TYPE = 'BUILD_COMPLET_DEV'
-                            echo "Pipeline 2: Déclenché par un push sur la branche dev."
-                        }
-                    } else if (env.BRANCH_NAME.startsWith('PR-') || env.CHANGE_ID) {
+                    // 1. Déterminer le type de build (PR, Dev, Tag)
+                    if (env.CHANGE_ID) {
+                        // Pipeline 1: Pull Request (PR)
                         env.PIPELINE_TYPE = 'BUILD_SMOKE_PR'
-                        echo "Pipeline 1: Déclenché par une Pull Request."
+                        echo "Pipeline 1: Déclenché par une Pull Request (PR-${env.CHANGE_ID})."
+                    } else if (env.TAG_NAME) {
+                        // Pipeline 3: Tag Versionné
+                        env.PIPELINE_TYPE = 'TAG_VERSIONNE'
+                        echo "Pipeline 3: Déclenché par le tag ${env.TAG_NAME} sur la branche ${env.BRANCH_NAME}."
+                    } else if (env.BRANCH_NAME == 'dev') {
+                        // Pipeline 2: Push sur la branche dev
+                        env.PIPELINE_TYPE = 'BUILD_COMPLET_DEV'
+                        echo "Pipeline 2: Déclenché par un push sur la branche dev."
                     } else {
                         env.PIPELINE_TYPE = 'AUTRE'
-                        echo "Pipeline non géré pour la branche ${env.BRANCH_NAME}."
-                        // Optionnel: fail fast si ce n'est pas une branche gérée
-                        // error "Pipeline non géré pour la branche ${env.BRANCH_NAME}."
+                        echo "Pipeline non géré pour la branche ${env.BRANCH_NAME}. Exécution du Smoke Test uniquement."
                     }
                 }
             }
