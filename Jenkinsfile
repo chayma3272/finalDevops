@@ -42,6 +42,17 @@ pipeline {
             }
         }
         
+        stage('Nettoyage Préalable') {
+            steps {
+                script {
+                    // Ajouté pour résoudre l'erreur "container name is already in use"
+                    echo "Nettoyage des conteneurs et volumes précédents..."
+                    // Utilisation de '|| exit 0' pour ignorer l'erreur si docker-compose down échoue (car les conteneurs n'existent pas encore)
+                    bat 'docker-compose down -v || exit 0' 
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 // Récupère le code
@@ -131,7 +142,7 @@ pipeline {
             steps {
                 script {
                     // Arrêter et supprimer les conteneurs et le réseau
-                    bat 'docker-compose down -v'
+                    // Le nettoyage principal est maintenant dans le bloc post, ce stage se concentre sur l'archivage
                     
                     // Archivage des artefacts (logs, résultats de tests, etc.)
                     // Créer un fichier de log simulé pour l'archivage
@@ -145,8 +156,8 @@ pipeline {
     post {
         always {
             // S'assurer que les conteneurs sont arrêtés même en cas d'échec
-            // La syntaxe '|| true' n'est pas standard Batch, on utilise 'bat' pour la commande
-            bat 'docker-compose down -v'
+            // Utilisation de '|| exit 0' pour ignorer l'erreur si docker-compose down échoue
+            bat 'docker-compose down -v || exit 0'
         }
         success {
             echo 'Pipeline terminé avec succès !'
