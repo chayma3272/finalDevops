@@ -9,11 +9,6 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-healthcheck:
-  test: ["CMD-SHELL", "mongosh --eval 'db.runCommand({ ping: 1 })' || exit 1"]
-  interval: 10s
-  timeout: 5s
-  retries: 5
 
 
   backend:
