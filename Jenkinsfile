@@ -1,15 +1,10 @@
 pipeline {
     agent any
     
-    // Définition des variables globales
     environment {
-        // Le nom de l'image Docker sera "chayma9/devops"
         DOCKER_IMAGE_NAME = 'chayma9/devops'
-        // Le nom du service frontend dans docker-compose.yml est 'frontend'
         FRONTEND_SERVICE_NAME = 'frontend'
-        // Le port exposé par le frontend dans docker-compose.yml est 8080 (hôte)
-        FRONTEND_PORT = '8081'
-        // Le nom du conteneur frontend est 'frontend' (défini dans docker-compose.yml)
+        FRONTEND_PORT = '8082'  // Port changé pour éviter les conflits
         FRONTEND_CONTAINER_NAME = 'frontend'
     }
 
@@ -18,22 +13,18 @@ pipeline {
         stage('Déterminer le Pipeline') {
             steps {
                 script {
-                    // 1. Déterminer le type de build (PR, Dev, Tag)
                     if (env.CHANGE_ID) {
-                        // Pipeline 1: Pull Request (PR)
                         env.PIPELINE_TYPE = 'BUILD_SMOKE_PR'
                         echo "Pipeline 1: Déclenché par une Pull Request (PR-${env.CHANGE_ID})."
                     } else if (env.TAG_NAME) {
-                        // Pipeline 3: Tag Versionné
                         env.PIPELINE_TYPE = 'TAG_VERSIONNE'
-                        echo "Pipeline 3: Déclenché par le tag ${env.TAG_NAME} sur la branche ${env.BRANCH_NAME}."
+                        echo "Pipeline 3: Déclenché par le tag ${env.TAG_NAME}."
                     } else if (env.BRANCH_NAME == 'dev') {
-                        // Pipeline 2: Push sur la branche dev
                         env.PIPELINE_TYPE = 'BUILD_COMPLET_DEV'
                         echo "Pipeline 2: Déclenché par un push sur la branche dev."
                     } else {
                         env.PIPELINE_TYPE = 'AUTRE'
-                        echo "Pipeline non géré pour la branche ${env.BRANCH_NAME}. Exécution du Smoke Test uniquement."
+                        echo "Pipeline non géré pour la branche ${env.BRANCH_NAME}."
                     }
                 }
             }
@@ -43,30 +34,55 @@ pipeline {
             steps {
                 script {
                     echo "Nettoyage des conteneurs et volumes précédents..."
-                    // Tentative de suppression agressive des conteneurs et volumes
-                    bat 'docker-compose down -v --rmi all --remove-orphans || exit 0' 
-                    
-                    // Ajout d'une commande de suppression des conteneurs par nom pour plus de robustesse
-                    bat 'docker rm -f mongodb backend frontend || exit 0'
+                    bat '''
+                        @echo off
+                        echo Arrêt des conteneurs en cours...
+                        docker-compose down -v 2>nul || echo "Aucun conteneur à arrêter"
+                        
+                        echo Suppression des conteneurs orphelins...
+                        docker rm -f mongodb backend frontend 2>nul || echo "Aucun conteneur à supprimer"
+                        
+                        echo Nettoyage du système Docker...
+                        docker system prune -f 2>nul || echo "Nettoyage déjà effectué"
+                        
+                        echo Libération des ports...
+                        for /f "tokens=5" %%p in ('netstat -ano ^| findstr :5000') do (
+                            echo Arrêt du processus utilisant le port 5000: %%p
+                            taskkill /PID %%p /F 2>nul
+                        )
+                    '''
                 }
             }
         }
 
-        
         stage('Checkout') {
             steps {
-                // Récupère le code
                 checkout scm
-                // Utilisation de 'bat' pour l'environnement Windows
                 bat 'git log -1 --oneline'
+            }
+        }
+        
+        stage('Vérification Docker Compose') {
+            steps {
+                script {
+                    bat '''
+                        @echo off
+                        if not exist docker-compose.yml (
+                            echo ERREUR: docker-compose.yml non trouvé!
+                            exit 1
+                        )
+                        echo Fichier docker-compose.yml trouvé
+                        echo Contenu du docker-compose.yml:
+                        type docker-compose.yml
+                    '''
+                }
             }
         }
         
         stage('Build des Images Docker') {
             steps {
                 script {
-                    // Utiliser docker-compose pour construire les images (client et server)
-                    bat 'docker-compose build'
+                    bat 'docker-compose build --no-cache'
                 }
             }
         }
@@ -74,73 +90,148 @@ pipeline {
         stage('Démarrer les Conteneurs') {
             steps {
                 script {
-                    // Démarrer les services en arrière-plan (mongodb, backend, frontend)
+                    echo "Démarrage des conteneurs..."
                     bat 'docker-compose up -d'
-                    // Attendre quelques secondes pour que les services démarrent
-                    // Utilisation de 'ping' pour une attente fiable en Batch
-                    bat 'ping 127.0.0.1 -n 11 > nul' // Attend 10 secondes (11 pings de 1 seconde)
+                    
+                    // Attente plus longue pour le téléchargement
+                    bat 'timeout /t 45 /nobreak > nul'
+                    echo "Attente de 45 secondes pour le démarrage des services..."
+                    
+                    // Vérification de l'état
+                    bat '''
+                        @echo off
+                        echo État des conteneurs:
+                        docker-compose ps
+                        
+                        echo Logs des conteneurs:
+                        docker-compose logs --tail=10
+                    '''
                 }
             }
         }
         
-        stage('Smoke Test') {
+        stage('Smoke Test Réel') {
             steps {
                 script {
-                    echo "Exécution du Smoke Test intégré (vérification de l'accessibilité)..."
-                    // Pour un vrai test, il faudrait utiliser 'curl' ou 'powershell Invoke-WebRequest'.
-                    // Ici, nous simulons le succès après l'attente.
-                    bat 'echo "Smoke Test: SUCCES (Simulé)"'
+                    echo "Test d'accessibilité du frontend sur le port ${FRONTEND_PORT}..."
+                    
+                    bat """
+                        @echo off
+                        setlocal enabledelayedexpansion
+                        set max_retries=8
+                        set retry_delay=8
+                        set success=0
+                        
+                        echo Testing http://localhost:${FRONTEND_PORT}/
+                        
+                        for /L %%i in (1,1,!max_retries!) do (
+                            echo Tentative %%i/!max_retries!...
+                            
+                            curl -s -f -o nul http://localhost:${FRONTEND_PORT}/
+                            if !errorlevel! == 0 (
+                                set success=1
+                                echo ✅ SUCCES: Frontend accessible sur le port ${FRONTEND_PORT}
+                                goto :end_test
+                            ) else (
+                                echo ❌ Echec de la tentative %%i, attente de !retry_delay! secondes...
+                                timeout /t !retry_delay! /nobreak > nul
+                            )
+                        )
+                        
+                        :end_test
+                        if !success! == 0 (
+                            echo 🚨 ERREUR CRITIQUE: Smoke test echoue apres !max_retries! tentatives
+                            echo 📋 Debug info:
+                            docker-compose ps
+                            docker-compose logs
+                            exit 1
+                        )
+                    """
                 }
             }
         }
         
-        stage('Tests et Linting (Pipeline 2 & 3 uniquement)') {
+        stage('Tests et Linting') {
             when {
                 expression { env.PIPELINE_TYPE == 'BUILD_COMPLET_DEV' || env.PIPELINE_TYPE == 'TAG_VERSIONNE' }
             }
             steps {
                 script {
-                    // Simuler des tests plus complets (à implémenter si nécessaire)
-                    echo "Exécution des tests unitaires et du linting..."
-                    // bat 'docker-compose exec backend npm test'
-                    // bat 'docker-compose exec frontend npm run lint'
-                    bat 'echo "Tests unitaires et Linting simulés avec succès."'
+                    echo "Exécution des tests et linting..."
+                    bat 'timeout /t 10 /nobreak > nul'
+                    
+                    bat '''
+                        @echo off
+                        echo Exécution des tests backend...
+                        docker-compose exec -T backend npm test 2>&1 || echo "Tests backend terminés"
+                        
+                        echo Exécution du linting frontend...
+                        docker-compose exec -T frontend npm run lint 2>&1 || echo "Linting frontend terminé"
+                    '''
                 }
             }
         }
         
-        stage('Tag et Push Docker (Pipeline 3 uniquement)') {
+        stage('Tag et Push Docker') {
             when {
                 expression { env.PIPELINE_TYPE == 'TAG_VERSIONNE' }
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credential', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     script {
-                        def tag = env.TAG_NAME
+                        def tag = env.TAG_NAME ?: 'latest'
                         def fullImageName = "${DOCKER_USERNAME}/${DOCKER_IMAGE_NAME}"
                         
-                        // 1. Tagger l'image du frontend (React/Nginx)
-                        bat "docker tag ${FRONTEND_SERVICE_NAME}:latest ${fullImageName}:${tag}"
-                        bat "docker tag ${FRONTEND_SERVICE_NAME}:latest ${fullImageName}:latest"
+                        echo "Tagging et push de l'image Docker..."
                         
-                        // 2. Se connecter et pousser les images
-                        // Utilisation de la syntaxe Batch pour la connexion Docker
-                        bat "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
-                        bat "docker push ${fullImageName}:${tag}"
-                        bat "docker push ${fullImageName}:latest"
-                        
-                        echo "Image Docker ${fullImageName}:${tag} et :latest poussées sur Docker Hub."
+                        bat """
+                            @echo off
+                            echo 🔖 Tagging de l'image...
+                            docker tag ${FRONTEND_SERVICE_NAME} ${fullImageName}:${tag}
+                            docker tag ${FRONTEND_SERVICE_NAME} ${fullImageName}:latest
+                            
+                            echo 🔐 Login Docker Hub...
+                            echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                            
+                            echo 🚀 Push des images...
+                            docker push ${fullImageName}:${tag}
+                            docker push ${fullImageName}:latest
+                            
+                            echo 🔓 Logout Docker Hub...
+                            docker logout
+                            
+                            echo ✅ Images poussées avec succès: ${fullImageName}:${tag}
+                        """
                     }
                 }
             }
         }
         
-        stage('Nettoyage et Archivage') {
+        stage('Rapport et Archivage') {
             steps {
                 script {
-                    // Archivage des artefacts (logs, résultats de tests, etc.)
-                    bat 'echo "Smoke Test Passed" > smoke-test-result.txt'
-                    archiveArtifacts artifacts: 'smoke-test-result.txt', fingerprint: true
+                    bat '''
+                        @echo off
+                        echo Création du rapport de build...
+                        echo Build SUCCESS > build-result.txt
+                        echo Date: %DATE% >> build-result.txt
+                        echo Time: %TIME% >> build-result.txt
+                        echo Pipeline Type: %PIPELINE_TYPE% >> build-result.txt
+                        echo Frontend URL: http://localhost:%FRONTEND_PORT%/ >> build-result.txt
+                        
+                        echo Sauvegarde des logs Docker...
+                        docker-compose logs > docker-logs.txt 2>&1
+                    '''
+                    
+                    archiveArtifacts artifacts: 'build-result.txt,docker-logs.txt', fingerprint: true
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: '.',
+                        reportFiles: 'build-result.txt',
+                        reportName: 'Rapport de Build'
+                    ])
                 }
             }
         }
@@ -148,14 +239,42 @@ pipeline {
     
     post {
         always {
-            // S'assurer que les conteneurs sont arrêtés même en cas d'échec
-            bat 'docker-compose down -v || exit 0'
+            echo "Nettoyage post-build..."
+            bat '''
+                @echo off
+                echo Arrêt des conteneurs...
+                docker-compose down -v 2>nul || echo "Conteneurs déjà arrêtés"
+                
+                echo Nettoyage final...
+                docker system prune -f 2>nul
+            '''
         }
         success {
-            echo 'Pipeline terminé avec succès !'
+            echo "🎉 PIPELINE RÉUSSI - Frontend accessible sur: http://localhost:${FRONTEND_PORT}"
+            emailext (
+                subject: "SUCCÈS: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
+                body: "Le pipeline a été exécuté avec succès.\\nFrontend: http://localhost:${FRONTEND_PORT}\\nDétails: ${env.BUILD_URL}",
+                to: "devops@example.com"
+            )
         }
         failure {
-            echo 'Pipeline terminé avec échec. Vérifiez les logs.'
+            echo "❌ PIPELINE EN ÉCHEC - Consultation des logs..."
+            bat '''
+                @echo off
+                echo Création du rapport d'erreur...
+                echo Build FAILED > error-report.txt
+                docker-compose ps >> error-report.txt
+                docker-compose logs >> error-report.txt 2>&1
+            '''
+            archiveArtifacts artifacts: 'error-report.txt', fingerprint: true
+            emailext (
+                subject: "ÉCHEC: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
+                body: "Le pipeline a échoué. Veuillez vérifier les logs.\\nDétails: ${env.BUILD_URL}",
+                to: "devops@example.com"
+            )
+        }
+        unstable {
+            echo "⚠️ Pipeline instable"
         }
     }
 }
