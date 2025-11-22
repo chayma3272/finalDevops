@@ -63,13 +63,14 @@ pipeline {
         
         stage('Démarrer les Conteneurs') {
             steps {
-                script {
-                    // Démarrer les services en arrière-plan (mongodb, backend, frontend)
-                    //bat 'docker-compose up -d'
-                    // Attendre quelques secondes pour que les services démarrent
-                    // La commande 'sleep' n'existe pas dans Batch, on utilise 'timeout'
-                    bat 'timeout /t 10 /nobreak'
-                }
+                 script {
+                       bat 'docker-compose down -v || echo "Nothing to remove"'
+                       bat 'docker-compose up -d'
+                       bat 'timeout /t 10 /nobreak'
+        }
+    }
+}
+
             }
         }
         
