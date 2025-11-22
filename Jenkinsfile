@@ -37,6 +37,22 @@ pipeline {
             }
         }
 
+        stage('Nettoyage Docker') {
+            steps {
+                script {
+                    echo "🔧 Nettoyage des anciens conteneurs Docker..."
+                    // Stop containers
+                    bat 'for /f "tokens=*" %i in (\'docker ps -aq\') do docker stop %i || echo No running containers'
+                    // Remove containers
+                    bat 'for /f "tokens=*" %i in (\'docker ps -aq\') do docker rm -f %i || echo No containers to remove'
+                    // Clean volumes
+                    bat 'docker volume prune -f'
+                    // Clean networks
+                    bat 'docker network prune -f'
+                }
+            }
+        }
+
         stage('Build des Images Docker') {
             steps {
                 script {
@@ -49,7 +65,7 @@ pipeline {
             steps {
                 script {
                     bat 'docker-compose down -v || echo "Nothing to remove"'
-//bat 'docker-compose up -d'
+                    bat 'docker-compose up -d'
                     bat 'timeout /t 10 /nobreak'
                 }
             }
