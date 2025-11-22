@@ -49,7 +49,7 @@ pipeline {
             steps {
                 script {
                     bat 'docker-compose down -v || echo "Nothing to remove"'
-                    bat 'docker-compose up -d'
+//bat 'docker-compose up -d'
                     bat 'timeout /t 10 /nobreak'
                 }
             }
