@@ -82,8 +82,9 @@ pipeline {
                     // Démarrer les services en arrière-plan (mongodb, backend, frontend)
                     bat 'docker-compose up -d'
                     // Attendre quelques secondes pour que les services démarrent
-                    // La commande 'sleep' n'existe pas dans Batch, on utilise 'timeout'
-                    bat 'timeout /t 10 /nobreak'
+// Utilisation de 'ping' pour une attente plus fiable en Batch'
+                    bat 'ping 127.0.0.1 -n 11 > nul' // Attend 10 secondes (11 pings de 1 seconde)
+'
                 }
             }
         }
