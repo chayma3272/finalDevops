@@ -1,7 +1,4 @@
-version: "3.8"
-
 services:
-
   mongodb:
     image: mongo:6
     container_name: mongodb
@@ -9,7 +6,7 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-
+    restart: unless-stopped
 
   backend:
     build:
@@ -22,8 +19,8 @@ services:
       MONGODB_ATLAS_CONNECTION: mongodb://mongodb:27017/todoapp
       PORT: 5000
     depends_on:
-      mongodb:
-        condition: service_healthy
+      - mongodb
+    command: sh -c "while ! nc -z mongodb 27017; do echo 'waiting for mongodb...'; sleep 2; done; npm start"
 
   frontend:
     build:
@@ -32,10 +29,11 @@ services:
     container_name: frontend
     ports:
       - "3000:80"
-    depends_on:
-      - backend
     environment:
       VITE_API_BASE_URL: http://backend:5000/api
+    depends_on:
+      - backend
+    command: sh -c "while ! nc -z backend 5000; do echo 'waiting for backend...'; sleep 2; done; nginx -g 'daemon off;'"
 
   jenkins:
     image: jenkins/jenkins:lts
@@ -48,6 +46,7 @@ services:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker
+    restart: unless-stopped
 
 volumes:
   mongodb_data:
