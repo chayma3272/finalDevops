@@ -1,6 +1,3 @@
-// Jenkinsfile pour le projet MERN-Todo-DevOps
-// Adapté pour un agent Jenkins fonctionnant sous Windows (utilisation de 'bat' au lieu de 'sh').
-
 pipeline {
     agent any
     
@@ -42,7 +39,7 @@ pipeline {
             }
         }
         
-                stage('Nettoyage Préalable') {
+        stage('Nettoyage Préalable') {
             steps {
                 script {
                     echo "Nettoyage des conteneurs et volumes précédents..."
@@ -70,7 +67,6 @@ pipeline {
             steps {
                 script {
                     // Utiliser docker-compose pour construire les images (client et server)
-                    // Assurez-vous que Docker et Docker Compose sont installés sur l'agent Windows
                     bat 'docker-compose build'
                 }
             }
@@ -82,9 +78,8 @@ pipeline {
                     // Démarrer les services en arrière-plan (mongodb, backend, frontend)
                     bat 'docker-compose up -d'
                     // Attendre quelques secondes pour que les services démarrent
-// Utilisation de 'ping' pour une attente plus fiable en Batch'
+                    // Utilisation de 'ping' pour une attente fiable en Batch (remplace 'timeout')
                     bat 'ping 127.0.0.1 -n 11 > nul' // Attend 10 secondes (11 pings de 1 seconde)
-'
                 }
             }
         }
@@ -92,12 +87,8 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 script {
-                    // Exécuter le script de smoke test sur le service frontend
-                    // ATTENTION : Le script 'smoke-test.sh' doit être réécrit en 'smoke-test.bat' ou 'smoke-test.ps1'
-                    // Pour l'instant, nous allons simuler l'exécution ou utiliser une commande directe
-                    echo "Exécution du Smoke Test (nécessite un script adapté à Windows ou une commande directe)..."
-                    // bat ".\\smoke-test.bat ${FRONTEND_CONTAINER_NAME} ${FRONTEND_PORT}"
-                    bat 'echo "Smoke Test simulé avec succès sur Windows."'
+                    // Exécuter le script de smoke test adapté à Windows
+                    bat "smoke-test.bat ${FRONTEND_CONTAINER_NAME} ${FRONTEND_PORT}"
                 }
             }
         }
@@ -132,7 +123,7 @@ pipeline {
                         bat "docker tag ${FRONTEND_SERVICE_NAME}:latest ${fullImageName}:latest"
                         
                         // 2. Se connecter et pousser les images
-                        // La connexion Docker nécessite une adaptation pour Windows Batch
+                        // Utilisation de la syntaxe Batch pour la connexion Docker
                         bat "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
                         bat "docker push ${fullImageName}:${tag}"
                         bat "docker push ${fullImageName}:latest"
@@ -146,11 +137,7 @@ pipeline {
         stage('Nettoyage et Archivage') {
             steps {
                 script {
-                    // Arrêter et supprimer les conteneurs et le réseau
-                    // Le nettoyage principal est maintenant dans le bloc post, ce stage se concentre sur l'archivage
-                    
                     // Archivage des artefacts (logs, résultats de tests, etc.)
-                    // Créer un fichier de log simulé pour l'archivage
                     bat 'echo "Smoke Test Passed" > smoke-test-result.txt'
                     archiveArtifacts artifacts: 'smoke-test-result.txt', fingerprint: true
                 }
@@ -161,7 +148,6 @@ pipeline {
     post {
         always {
             // S'assurer que les conteneurs sont arrêtés même en cas d'échec
-            // Utilisation de '|| exit 0' pour ignorer l'erreur si docker-compose down échoue
             bat 'docker-compose down -v || exit 0'
         }
         success {
