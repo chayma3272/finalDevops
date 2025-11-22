@@ -3,10 +3,10 @@ pipeline {
 
     environment {
         // Variables globales
-        DOCKER_IMAGE_NAME = 'chayma9/devops'
-        FRONTEND_SERVICE_NAME = 'frontend'
-        FRONTEND_PORT = '8081'
-        FRONTEND_CONTAINER_NAME = 'frontend'
+    FRONTEND_PORT = '3000'
+    BACKEND_PORT = '5000'
+    MONGODB_PORT = '27017'
+    DOCKER_IMAGE_NAME = 'chayma9/devops' 
     }
 
     stages {
