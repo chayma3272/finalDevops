@@ -1,4 +1,5 @@
-FROM node:lts-alpine as build
+# Étape 1: Build de l'application React (Node.js)
+FROM node:lts-alpine As build
 WORKDIR /app
 
 COPY package*.json ./

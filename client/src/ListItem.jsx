@@ -7,18 +7,27 @@ import Tooltip from "./Tooltip";
 import ListItemSkeleton from "./ListItemSkeleton";
 import { useState } from "react";
 
-const ListItem = ({ todoList, setAddTask, isListLoading, fetchTodoList }) => {
+const ListItem = ({
+  todoList = [],
+  setAddTask = () => {},
+  isListLoading = false,
+  fetchTodoList = () => {},
+}) => {
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [isCompleteLoading, setIsCompleteLoading] = useState(false);
 
   const API_BACKEND = import.meta.env.VITE_API_BASE_URL;
 
-  // Set task for editing
+  // -----------------------------
+  // EDIT TASK
+  // -----------------------------
   const handleEdit = (task) => {
     setAddTask(task);
   };
 
-  // Delete task using its unique id
+  // -----------------------------
+  // DELETE TASK
+  // -----------------------------
   const handleDelete = (_id) => {
     const headers = {
       headers: {
@@ -42,10 +51,13 @@ const ListItem = ({ todoList, setAddTask, isListLoading, fetchTodoList }) => {
         setIsDeleteLoading(false);
       }
     }
+
     deleteTodoList();
   };
 
-  // Toggle completion for a task using its unique id
+  // -----------------------------
+  // COMPLETE / UNCOMPLETE TASK
+  // -----------------------------
   const handleComplete = (currentTask) => {
     const updatedTask = {
       ...currentTask,
@@ -69,9 +81,10 @@ const ListItem = ({ todoList, setAddTask, isListLoading, fetchTodoList }) => {
 
         toast.success(
           currentTask.isCompleted
-            ? `${currentTask.task} - Task not completed`
-            : `${currentTask.task} - Task completed`
+            ? `${currentTask.task} - Marked as incomplete`
+            : `${currentTask.task} - Marked as complete`
         );
+
         await fetchTodoList();
       } catch (err) {
         const message =
@@ -82,6 +95,7 @@ const ListItem = ({ todoList, setAddTask, isListLoading, fetchTodoList }) => {
         setIsCompleteLoading(false);
       }
     }
+
     updateTodoList();
   };
 
@@ -95,6 +109,7 @@ const ListItem = ({ todoList, setAddTask, isListLoading, fetchTodoList }) => {
             key={list._id}
             className="flex flex-row justify-between items-start gap-x-3"
           >
+            {/* COMPLETE / UNCOMPLETE */}
             <div
               className={`flex flex-row justify-start items-start gap-x-4 ${
                 isCompleteLoading ? "cursor-not-allowed" : "cursor-pointer"
@@ -118,6 +133,7 @@ const ListItem = ({ todoList, setAddTask, isListLoading, fetchTodoList }) => {
               </span>
             </div>
 
+            {/* EDIT + DELETE */}
             <div className="flex flex-row gap-3">
               <Tooltip text="Edit">
                 <div
@@ -127,9 +143,10 @@ const ListItem = ({ todoList, setAddTask, isListLoading, fetchTodoList }) => {
                   <TbEdit size={20} />
                 </div>
               </Tooltip>
+
               <Tooltip text="Delete">
                 <div
-                  className={`h-5 w-5  ${
+                  className={`h-5 w-5 ${
                     isDeleteLoading
                       ? "text-gray-400 cursor-not-allowed"
                       : "text-gray-700 cursor-pointer hover:text-rose-800"
