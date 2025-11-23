@@ -1,20 +1,15 @@
-# Utiliser l'image Node.js officielle pour le backend
-FROM node:lts-alpine
+FROM node:lts-alpine AS build
+WORKDIR /app
 
-# Définir le répertoire de travail dans le conteneur
-WORKDIR /usr/src/app
-
-# Copier les fichiers de dépendances
 COPY package*.json ./
+RUN npm install --production
 
-# Installer les dépendances
-RUN npm install
-
-# Copier le reste du code source du backend
 COPY . .
 
-# Exposer le port 5000 (le port d'écoute de votre serveur Express)
-EXPOSE 5000
+FROM node:lts-alpine
+WORKDIR /app
 
-# Commande pour démarrer le serveur
-CMD [ "npm", "start" ]
+COPY --from=build /app /app
+
+EXPOSE 5000
+CMD ["npm", "start"]

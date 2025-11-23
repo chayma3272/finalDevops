@@ -1,47 +1,54 @@
 
 services:
-  # 1. Service de Base de Données (MongoDB)
   mongodb:
-    image: mongo:latest
+    image: mongo:6
     container_name: mongodb
     ports:
-      # Expose le port 27017 en interne pour le backend
       - "27017:27017"
     volumes:
-      # Stocke les données de la base de données dans un volume persistant
       - mongodb_data:/data/db
-    # Variables d'environnement pour la base de données (si besoin, ici on utilise les valeurs par défaut)
-    environment:
-      MONGO_INITDB_DATABASE: todoapp # Nom de la base de données
+    restart: unless-stopped
 
-  # 2. Service Backend (Node.js/Express)
   backend:
     build:
-      context: ./server # Indique où trouver le Dockerfile (dans le dossier server)
+      context: ./server
       dockerfile: Dockerfile
     container_name: backend
     ports:
-      # Expose le port 5000 en interne pour le frontend
       - "5000:5000"
     environment:
-      # L'URL de connexion à la base de données (utilise le nom du service 'mongodb')
       MONGODB_ATLAS_CONNECTION: mongodb://mongodb:27017/todoapp
       PORT: 5000
     depends_on:
-      - mongodb # Assure que la base de données démarre avant le backend
+      - mongodb
+    command: sh -c "while ! nc -z mongodb 27017; do echo 'waiting for mongodb...'; sleep 2; done; npm start"
 
-  # 3. Service Frontend (React/Nginx)
   frontend:
     build:
-      context: ./client # Indique où trouver le Dockerfile (dans le dossier client)
+      context: ./client
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      # Expose le port 80 (Nginx) sur le port 8080 de votre machine hôte
-      - "8080:80"
+      - "3000:80"
+    environment:
+      VITE_API_BASE_URL: http://backend:5000/api
     depends_on:
-      - backend # Assure que le backend démarre avant le frontend
+      - backend
+    command: sh -c "while ! nc -z backend 5000; do echo 'waiting for backend...'; sleep 2; done; nginx -g 'daemon off;'"
 
-# Volumes pour la persistance des données MongoDB
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    user: root
+    ports:
+      - "8082:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    restart: unless-stopped
+
 volumes:
   mongodb_data:
+  jenkins_home:
