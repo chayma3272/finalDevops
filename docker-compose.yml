@@ -28,7 +28,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "3000:80"
+      - "3000:30"
     environment:
       VITE_API_BASE_URL: http://backend:5000/api
     depends_on:
