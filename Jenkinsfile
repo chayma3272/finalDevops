@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Variables globales
-    FRONTEND_PORT = '3000'
+    FRONTEND_PORT = '3001'
     BACKEND_PORT = '5000'
     MONGODB_PORT = '27017'
     DOCKER_IMAGE_NAME = 'chayma9/devops' 
@@ -92,21 +92,21 @@ stage('Démarrer les Conteneurs') {
     }
 }
 
-        stage('Smoke Test') {
-            steps {
-                script {
-                    if (isUnix()) {
-                        sh '''
-                        echo "Smoke Test Frontend sur le port ${FRONTEND_PORT}"
-                        curl -sSf http://localhost:${FRONTEND_PORT} || (echo "FAIL" && exit 1)
-                        echo "Smoke Test OK"
-                        '''
-                    } else {
-                        bat 'echo "Smoke Test Frontend simulé"'
-                    }
-                }
+stage('Smoke Test') {
+    steps {
+        script {
+            if (isUnix()) {
+                sh '''
+                echo "Smoke Test Frontend sur le port ${FRONTEND_PORT}"
+                curl -sSf http://localhost:3001 || (echo "FAIL" && exit 1)  # ← Change ici aussi
+                echo "Smoke Test OK"
+                '''
+            } else {
+                bat 'echo "Smoke Test Frontend simulé"'
             }
         }
+    }
+}
 
         stage('Tests et Linting (dev & tag)') {
             when {
