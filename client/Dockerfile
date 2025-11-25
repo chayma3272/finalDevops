@@ -5,12 +5,11 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN npm run build  # doit produire un dossier /dist
+RUN npm run build
 
 FROM nginx:alpine
-COPY nginx.conf /etc/nginx/nginx.conf
 
-# copie du build
+# Utiliser le fichier nginx.conf par défaut fourni par nginx
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
