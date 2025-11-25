@@ -12,7 +12,7 @@ pipeline {
 
     stages {
 
-        stage('Déterminer le Pipeline') {
+        stage('Determine Pipeline') {
             steps {
                 script {
                     if (env.CHANGE_ID) {
@@ -34,14 +34,25 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                bat 'git log -1 --oneline'
                 checkout scm
+                bat 'git log -1 --oneline'
             }
         }
 
         stage('Setup') {
             steps {
-                bat 'npm install'
+                parallel(
+                    "Setup Frontend": {
+                        dir('client') {
+                            bat 'npm install'
+                        }
+                    },
+                    "Setup Backend": {
+                        dir('server') {
+                            bat 'npm install'
+                        }
+                    }
+                )
             }
         }
 
@@ -54,7 +65,7 @@ pipeline {
         stage('Run Docker') {
             steps {
                 bat 'docker-compose up -d'
-                bat 'ping 127.0.0.1 -n 16 > nul'  // sleep simulé sur Windows
+                bat 'ping 127.0.0.1 -n 16 > nul' // simulate sleep
             }
         }
 
@@ -70,12 +81,12 @@ pipeline {
                 expression { env.PIPELINE_TYPE == 'BUILD_COMPLET_DEV' || env.PIPELINE_TYPE == 'TAG_VERSIONNE' }
             }
             steps {
-                parallel (
+                parallel(
                     "Frontend Tests": {
-                        bat 'echo Tests frontend simulés'
+                        dir('client') { bat 'echo Tests frontend simulés' }
                     },
                     "Backend Tests": {
-                        bat 'echo Tests backend simulés'
+                        dir('server') { bat 'echo Tests backend simulés' }
                     }
                 )
             }
@@ -102,7 +113,7 @@ pipeline {
             }
         }
 
-        stage('Archivage Artefacts') {
+        stage('Archive Artifacts') {
             steps {
                 bat 'docker-compose logs > build.log || exit 0'
                 bat 'echo Simulated test results > test-results.json || exit 0'
@@ -116,7 +127,7 @@ pipeline {
             }
         }
 
-    } // fin stages
+    } // end stages
 
     post {
         success {
