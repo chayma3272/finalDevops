@@ -74,23 +74,23 @@ pipeline {
             }
         }
 
-        stage('Démarrer les Conteneurs') {
-            steps {
-                script {
-                    if (isUnix()) {
-                        sh '''
-                        docker-compose up -d
-                        sleep 10
-                        '''
-                    } else {
-                        bat '''
-                        docker-compose up -d
-                        ping 127.0.0.1 -n 11 > nul
-                        '''
-                    }
-                }
+stage('Démarrer les Conteneurs') {
+    steps {
+        script {
+            if (isUnix()) {
+                sh '''
+                docker-compose up -d
+                sleep 15
+                '''
+            } else {
+                bat '''
+                docker-compose up -d
+                ping 127.0.0.1 -n 16 > nul
+                '''
             }
         }
+    }
+}
 
         stage('Smoke Test') {
             steps {
