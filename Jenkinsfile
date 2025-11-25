@@ -209,7 +209,7 @@ pipeline {
             }
         }
 
-    }
+    } // fin du bloc stages
 
     post {
         success {
