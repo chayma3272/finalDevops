@@ -65,14 +65,12 @@ pipeline {
         stage('Run Docker') {
             steps {
                 bat 'docker-compose up -d'
-                // Remplace sleep Linux → timeout Windows
                 bat 'timeout /t 15 >nul'
             }
         }
 
         stage('Smoke Test') {
             steps {
-                // curl s’exécute dans Windows PowerShell ou CMD
                 // On échoue si curl ne répond pas
                 bat 'curl http://localhost:3001 || exit /b 1'
                 bat 'echo Smoke Test Passed > smoke-test-result.txt'
