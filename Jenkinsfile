@@ -65,13 +65,16 @@ pipeline {
         stage('Run Docker') {
             steps {
                 bat 'docker-compose up -d'
-                bat 'ping 127.0.0.1 -n 16 > nul' // simulate sleep
+                // Remplace sleep Linux → timeout Windows
+                bat 'timeout /t 15 >nul'
             }
         }
 
         stage('Smoke Test') {
             steps {
-                bat 'curl -sSf http://localhost:3001 || exit 1'
+                // curl s’exécute dans Windows PowerShell ou CMD
+                // On échoue si curl ne répond pas
+                bat 'curl http://localhost:3001 || exit /b 1'
                 bat 'echo Smoke Test Passed > smoke-test-result.txt'
             }
         }
@@ -98,36 +101,35 @@ pipeline {
             }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'id', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    script {
-                        def tag = env.TAG_NAME
-                        def fullImageName = "${DOCKER_USERNAME}/${DOCKER_IMAGE_NAME}"
-                        bat """
-                        docker tag ${FRONTEND_SERVICE_NAME}:latest ${fullImageName}:${tag}
-                        docker tag ${FRONTEND_SERVICE_NAME}:latest ${fullImageName}:latest
-                        echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
-                        docker push ${fullImageName}:${tag}
-                        docker push ${fullImageName}:latest
-                        """
-                    }
+                    bat """
+                    echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                    
+                    docker tag ${FRONTEND_SERVICE_NAME}:latest %DOCKER_USERNAME%/${DOCKER_IMAGE_NAME}:${env.TAG_NAME}
+                    docker tag ${FRONTEND_SERVICE_NAME}:latest %DOCKER_USERNAME%/${DOCKER_IMAGE_NAME}:latest
+                    
+                    docker push %DOCKER_USERNAME%/${DOCKER_IMAGE_NAME}:${env.TAG_NAME}
+                    docker push %DOCKER_USERNAME%/${DOCKER_IMAGE_NAME}:latest
+                    """
                 }
             }
         }
 
         stage('Archive Artifacts') {
             steps {
-                bat 'docker-compose logs > build.log || exit 0'
-                bat 'echo Simulated test results > test-results.json || exit 0'
+                bat 'docker-compose logs > build.log'
+                bat 'echo Simulated test results > test-results.json'
                 archiveArtifacts artifacts: 'smoke-test-result.txt, build.log, test-results.json', fingerprint: true
             }
         }
 
         stage('Cleanup') {
             steps {
-                bat 'docker-compose down -v --remove-orphans || exit 0'
+                // sous Windows pas de "|| true"
+                bat 'docker-compose down -v --remove-orphans'
             }
         }
 
-    } // end stages
+    }
 
     post {
         success {
@@ -137,7 +139,7 @@ pipeline {
             echo "Pipeline terminé avec échec. Vérifiez les logs."
         }
         always {
-            bat 'docker-compose down -v || exit 0'
+            bat 'docker-compose down -v'
         }
     }
 }
