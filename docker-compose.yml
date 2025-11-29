@@ -28,7 +28,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "3001:80"  # ← CHANGEMENT ICI : 3001 au lieu de 3000
+      - "3001:80"  
     depends_on:
       - backend
     restart: unless-stopped
